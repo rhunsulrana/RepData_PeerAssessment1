@@ -1,17 +1,18 @@
 
 Reproducible Research: Peer Assessment 1
 ========================================
-coursera.org - repdata-005
+coursera.org - repdata-005  
 Brendan Swiniarski - August 2014
 
 ## Data
 I will be using the 'activity.csv' unzipped from the original zip file provided
-    in the [git repository][assignment_repository]that we forked for this
+    in the [git repository][assignment_repository] that we forked for this
     assignment, and made available from the hosted file
     [linked in the assignment's instructions][hosted_dataset].
     
 This dataset contains self-reported activity in number of steps per 5-minute
-    interval throughout each day, from 2012-10-01 through 2012-11-30.  
+    interval throughout each day, from October 1, 2012 through
+    November 30, 2012.  
     
 This dataset follows the following scheme:  
 
@@ -19,13 +20,16 @@ This dataset follows the following scheme:
 * __date__: The date on which the observation was reported
             in YYYY-MM-DD format.
 * __interval__: Identifier for the 5-minute interval, starting at `0` and
-                going through `2355` each day.  
+                incrementing by `5` till it reaches `55`, then it rolls
+                over to `100`, it goes all the way up to `2355` each day.  
     * *NB*: This format is very confusing. think of it as format like
         __HH:MM__, but with leading zeros removed. We will be cleaning this up
         before we use it in time series charts, but even without preprocessing
         it into a `POSIXct` format it can be useful as an ordinal numbering system.
                 
 ## Loading and preprocessing the data
+
+#### Downloading the dataset
 To begin with, we will need the dataset, available at the
     [link mentioned above][hosted_dataset].  
 We need to be OS-conscious here, the internal methods for UNIX-based systems
@@ -57,12 +61,12 @@ There isn't much preprocessing to do at first. We will have some processing to
     
 I am going to coerce `fread()` to read the steps as a `double` numeric value
     rather than as an `integer`, because it saves us from having to do it later
-    when we look at fixing missing values, and does not affect any of our'
+    when we look at fixing missing values, and does not affect any of our
     other usage throughout this process.
 
 ```r
 library(data.table)
-activity <- fread('activity.csv', colClasses=c('double', 'characater', 'integer'))
+activity <- fread('activity.csv', colClasses=c('double', 'character', 'integer'))
 ```
 
 From this function, we now have a `data.table`, let's see what it looks like.
@@ -94,7 +98,7 @@ First, let's see what a histogram of the total number of steps taken each day
     our histogram.
 
 ```r
-sum.steps.by.day <- activity[!is.na(steps),sum(steps, na.rm=TRUE), by=date]
+sum.steps.by.day <- activity[!is.na(steps),sum(steps), by=date]
 hist(sum.steps.by.day$V1, breaks=length(sum.steps.by.day$V1),
      xlab='Total Steps', ylab='# of days',
      main='Frequency of Total Steps per Day')
@@ -126,12 +130,13 @@ Later, I'll be comparing these values to the same statistics after having
 
 ## What is the average daily activity pattern?  
 #### What else can this dataset tell us?  
-Let's look at the steps taken over the course of an average day:  
+Let's look at the steps taken over the course of an average day, note that 
+I am once again filtering out the intervals with `NA` observations:  
 
 ```r
-average.day.by.interval <- activity[,mean(steps, na.rm=TRUE), by=interval]
+average.day.by.interval <- activity[!is.na(steps),mean(steps), by=interval]
 plot(average.day.by.interval$V1 ~ average.day.by.interval$interval, type='l',
-     xlab='Interval (increments of 5 minutes)', ylab='Average # Steps',
+     xlab='Interval', ylab='Average # Steps',
      main='Average Daily Activity')
 ```
 
@@ -213,7 +218,7 @@ Now let's do some of the same plotting and calculations on our newly imputed
     data set and see if there are any major differences:
 
 ```r
-imputed.sum.steps.by.day <- imputed.activity[,sum(steps, na.rm=TRUE), by=date]
+imputed.sum.steps.by.day <- imputed.activity[,sum(steps), by=date]
 hist(imputed.sum.steps.by.day$V1, breaks=length(imputed.sum.steps.by.day$V1),
      xlab='Total Steps', ylab='# of days',
      main='Frequency of Total Steps per Day, imputed dataset')
@@ -238,8 +243,7 @@ median(imputed.sum.steps.by.day$V1)
 ```
 
 As we can see, the means of our two datasets are identical, and the median is
-    only different by 1 step, which amounts to
-    0.0093% - completely negligible.
+    only different by 1 step, which amounts to about .001% - completely negligible.
     
 As for our histograms, let's make it really clear how they've changed. First 
     we will create two histograms, and overlay a density line on each.
@@ -274,7 +278,7 @@ plot(imputed.sum.hist, main='Imputed', xlab='Steps', ylab='# Days')
 lines(imputed.sum.density, col='red')
 ```
 
-<img src="figure/compare.histograms.display.png" title="plot of chunk compare.histograms.display" alt="plot of chunk compare.histograms.display" width="800px" />
+![plot of chunk compare.histograms.display](figure/compare.histograms.display.png) 
 
 This side-by-side comparison makes it clear that the way we imputed the data
     has narrowed the variance in our original curve, skewing it towards it's
@@ -363,11 +367,12 @@ mtext('Interval', side=1, outer=TRUE, line=2.2)
 mtext('Steps', side=2, outer=TRUE, line=2.2)
 ```
 
-<img src="figure/plot.is.wday.png" title="plot of chunk plot.is.wday" alt="plot of chunk plot.is.wday" width="800px" />
+![plot of chunk plot.is.wday](figure/plot.is.wday.png) 
 
 Generally speaking, it looks like __time of day__ doesn't have a huge effect on
-    the observations, as tehy both have a similar overall shape, however we can
-    clearly see there are simply __more steps__ on a Weekday than on the
+    the observations, as they both have a similar overall shape, however we can
+    clearly see the magnitude of the second line is greater throughout, meaning
+    there are simply __more steps__ on a Weekday than on the
     Weekend.
     
     
