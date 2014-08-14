@@ -1,7 +1,4 @@
-```{r, setoptions,echo=FALSE}
-library(knitr)
-opts_chunk$set(echo = TRUE)
-```
+
 Reproducible Research: Peer Assessment 1
 ========================================
 coursera.org - repdata-005
@@ -33,20 +30,9 @@ To begin with, we will need the dataset, available at the
     [link mentioned above][hosted_dataset].  
 We need to be OS-conscious here, the internal methods for UNIX-based systems
 __do no support https__, so in that case we need to use the `rcurl` package.
-```{r download.file, echo=FALSE}
-# This code chunk will download the zip file if it isn't already in the working
-# directory, the next code chunk is just for display purposes.
-if (!file.exists('repdata_data_activity.zip')) {
-    if (.Platform$OS.type == 'unix') {
-        download.file('https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip',
-                      'repdata_data_activity.zip', method='curl')
-    } else {
-        download.file('https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip',
-                      'repdata_data_activity.zip')
-    }
-}
-```
-```{r download.file.display, eval=FALSE}
+
+
+```r
 # This code chunk will download the zip file into the working directory.
 if (.Platform$OS.type == 'unix') {
     download.file('https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip',
@@ -58,7 +44,8 @@ if (.Platform$OS.type == 'unix') {
 ```
 
 Next we unzip the file and get our csv:  
-```{r unzip}
+
+```r
 unzip('repdata_data_activity.zip', 'activity.csv')
 ```
 
@@ -72,15 +59,32 @@ I am going to coerce `fread()` to read the steps as a `double` numeric value
     rather than as an `integer`, because it saves us from having to do it later
     when we look at fixing missing values, and does not affect any of our'
     other usage throughout this process.
-```{r read.dataset}
+
+```r
 library(data.table)
 activity <- fread('activity.csv', colClasses=c('double', 'characater', 'integer'))
 ```
 
 From this function, we now have a `data.table`, let's see what it looks like.
     Notice we have __many__ `NA`'s - we will be fixing that later on.
-```{r}
+
+```r
 activity
+```
+
+```
+##        steps       date interval
+##     1:    NA 2012-10-01        0
+##     2:    NA 2012-10-01        5
+##     3:    NA 2012-10-01       10
+##     4:    NA 2012-10-01       15
+##     5:    NA 2012-10-01       20
+##    ---                          
+## 17564:    NA 2012-11-30     2335
+## 17565:    NA 2012-11-30     2340
+## 17566:    NA 2012-11-30     2345
+## 17567:    NA 2012-11-30     2350
+## 17568:    NA 2012-11-30     2355
 ```
 
 ## What is mean total number of steps taken per day?  
@@ -88,17 +92,32 @@ First, let's see what a histogram of the total number of steps taken each day
     looks like. __NOTE__: I'm not including observations that have `NA` values
     for steps. This gives us a very high frequency for the `0` bar in
     our histogram.
-```{r hist.sum.by.day}
+
+```r
 sum.steps.by.day <- activity[!is.na(steps),sum(steps, na.rm=TRUE), by=date]
 hist(sum.steps.by.day$V1, breaks=length(sum.steps.by.day$V1),
      xlab='Total Steps', ylab='# of days',
      main='Frequency of Total Steps per Day')
 ```
 
+![plot of chunk hist.sum.by.day](figure/hist.sum.by.day.png) 
+
 Now, for statistics' sake, let's find the mean and median:
-```{r mean}
+
+```r
 mean(sum.steps.by.day$V1)
+```
+
+```
+## [1] 10766
+```
+
+```r
 median(sum.steps.by.day$V1)
+```
+
+```
+## [1] 10765
 ```
 
 Later, I'll be comparing these values to the same statistics after having
@@ -108,16 +127,35 @@ Later, I'll be comparing these values to the same statistics after having
 ## What is the average daily activity pattern?  
 #### What else can this dataset tell us?  
 Let's look at the steps taken over the course of an average day:  
-```{r average.day}
+
+```r
 average.day.by.interval <- activity[,mean(steps, na.rm=TRUE), by=interval]
 plot(average.day.by.interval$V1 ~ average.day.by.interval$interval, type='l',
      xlab='Interval (increments of 5 minutes)', ylab='Average # Steps',
      main='Average Daily Activity')
-```  
+```
+
+![plot of chunk average.day](figure/average.day.png) 
 
 So when is this dataset *most* active on average?
-```{r most.active.average.interval}
+
+```r
 average.day.by.interval[order(-V1)]
+```
+
+```
+##      interval    V1
+##   1:      835 206.2
+##   2:      840 195.9
+##   3:      850 183.4
+##   4:      845 179.6
+##   5:      830 177.3
+##  ---               
+## 284:      350   0.0
+## 285:      355   0.0
+## 286:      415   0.0
+## 287:      500   0.0
+## 288:     2310   0.0
 ```
 
 This individual is clearly a morning person: 8:35 AM is, on average,
@@ -126,12 +164,17 @@ This individual is clearly a morning person: 8:35 AM is, on average,
 
 ## Imputing missing values  
 Now let's take a look at our dataset's missing values.
-```{r count.na}
+
+```r
 na.values <- activity[,c(sum(is.na(steps)), sum(!is.na(steps)))]
 na.values
 ```
-Here we can clearly see we have __`r na.values[1]`__ `NA` values and
-    __`r na.values[2]`__ observations with usable data.  
+
+```
+## [1]  2304 15264
+```
+Here we can clearly see we have __2304__ `NA` values and
+    __15264__ observations with usable data.  
 
 So how can we impute these values? The best approach is one that doesn't
     inherently skew our baseline statistics. What I'm going to do is use our 
@@ -139,7 +182,8 @@ So how can we impute these values? The best approach is one that doesn't
     At worst, this will skew our results very slightly towards a pre-existing
     central tendency.
 
-```{r impute.na, results='hide'}
+
+```r
 # First we'll give our average.day.by.interval table some better column names
 setnames(average.day.by.interval, c('i', 's'))
 
@@ -167,23 +211,40 @@ imputed.activity[,steps:={
 
 Now let's do some of the same plotting and calculations on our newly imputed
     data set and see if there are any major differences:
-```{r imputed.calculations}
+
+```r
 imputed.sum.steps.by.day <- imputed.activity[,sum(steps, na.rm=TRUE), by=date]
 hist(imputed.sum.steps.by.day$V1, breaks=length(imputed.sum.steps.by.day$V1),
      xlab='Total Steps', ylab='# of days',
      main='Frequency of Total Steps per Day, imputed dataset')
+```
 
+![plot of chunk imputed.calculations](figure/imputed.calculations.png) 
+
+```r
 mean(imputed.sum.steps.by.day$V1)
+```
+
+```
+## [1] 10766
+```
+
+```r
 median(imputed.sum.steps.by.day$V1)
+```
+
+```
+## [1] 10766
 ```
 
 As we can see, the means of our two datasets are identical, and the median is
     only different by 1 step, which amounts to
-    `r 100/median(imputed.sum.steps.by.day$V1)`% - completely negligible.
+    0.0093% - completely negligible.
     
 As for our histograms, let's make it really clear how they've changed. First 
     we will create two histograms, and overlay a density line on each.
-```{r compare.histograms.calculate, collapse=TRUE, results='hide', fig.show='hide'}
+
+```r
 #Plot a histogram of our original dataset, then plot a density line
 sum.hist <- hist(sum.steps.by.day$V1, breaks=length(sum.steps.by.day$V1))
 # we are using this multiplier to overlay the density line on our
@@ -198,10 +259,11 @@ imputed.sum.hist <- hist(imputed.sum.steps.by.day$V1,
 imputed.multiplier <- imputed.sum.hist$counts/imputed.sum.hist$density
 imputed.sum.density <- density(imputed.sum.steps.by.day$V1)
 imputed.sum.density$y <- imputed.sum.density$y * imputed.multiplier[1]
-```  
+```
 
 Now let's see what they look like side-by-side:
-```{r compare.histograms.display, out.width='800px'}
+
+```r
 #plot these next to each other.
 par(mfrow=c(1,2))
 
@@ -212,6 +274,8 @@ plot(imputed.sum.hist, main='Imputed', xlab='Steps', ylab='# Days')
 lines(imputed.sum.density, col='red')
 ```
 
+<img src="figure/compare.histograms.display.png" title="plot of chunk compare.histograms.display" alt="plot of chunk compare.histograms.display" width="800px" />
+
 This side-by-side comparison makes it clear that the way we imputed the data
     has narrowed the variance in our original curve, skewing it towards it's
     original mean.
@@ -221,7 +285,8 @@ To see what differences we have in the weekday activity versus the weekend
     activity, first we'll need to decide which observations came from weekdays,
     and which came from weekends.
     
-```{r is.wday, results='hide'}
+
+```r
 # We will be using str_pad from the stringr library to format the intervals
 library(stringr)
 # next we will process our imputed data, creating our column that shows us
@@ -245,14 +310,31 @@ imputed.activity[,is.wday:={
 }, by=r]
 ```
 
-```{r as.factor}
+
+```r
 # transform our new column into a factor
 imputed.activity[,is.wday:=as.factor(is.wday)]
 ```
 
+```
+##          steps       date interval     r is.wday
+##     1: 1.71698 2012-10-01        0     1 weekday
+##     2: 0.33962 2012-10-01        5     2 weekday
+##     3: 0.13208 2012-10-01       10     3 weekday
+##     4: 0.15094 2012-10-01       15     4 weekday
+##     5: 0.07547 2012-10-01       20     5 weekday
+##    ---                                          
+## 17564: 4.69811 2012-11-30     2335 17564 weekday
+## 17565: 3.30189 2012-11-30     2340 17565 weekday
+## 17566: 0.64151 2012-11-30     2345 17566 weekday
+## 17567: 0.22642 2012-11-30     2350 17567 weekday
+## 17568: 1.07547 2012-11-30     2355 17568 weekday
+```
+
 
 Now let's see what this data really looks like in a visual way:  
-```{r plot.is.wday, out.width='800px'}
+
+```r
 # Set up our plotting parameters
 par(mfrow=c(2,1), mar=c(0,0,0,0), oma=c(3,3,1,1), tcl='-.25')
 
@@ -280,6 +362,8 @@ box()
 mtext('Interval', side=1, outer=TRUE, line=2.2)
 mtext('Steps', side=2, outer=TRUE, line=2.2)
 ```
+
+<img src="figure/plot.is.wday.png" title="plot of chunk plot.is.wday" alt="plot of chunk plot.is.wday" width="800px" />
 
 Generally speaking, it looks like __time of day__ doesn't have a huge effect on
     the observations, as tehy both have a similar overall shape, however we can
