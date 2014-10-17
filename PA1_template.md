@@ -1,8 +1,8 @@
 
 Reproducible Research: Peer Assessment 1
 ========================================
-coursera.org - repdata-005  
-Brendan Swiniarski - August 2014
+coursera.org - repdata-007  
+Brendan Swiniarski - October 2014
 
 ## Data
 I will be using the 'activity.csv' unzipped from the original zip file provided
@@ -92,19 +92,22 @@ activity
 ```
 
 ## What is mean total number of steps taken per day?  
-First, let's see what a histogram of the total number of steps taken each day
+First, let's see what a plot of the total number of steps taken each day
     looks like. __NOTE__: I'm not including observations that have `NA` values
-    for steps. This gives us a very high frequency for the `0` bar in
-    our histogram.
+    for steps.
 
 ```r
 sum.steps.by.day <- activity[!is.na(steps),sum(steps), by=date]
-hist(sum.steps.by.day$V1, breaks=length(sum.steps.by.day$V1),
-     xlab='Total Steps', ylab='# of days',
-     main='Frequency of Total Steps per Day')
+sum.steps.by.day[,date:=as.POSIXct(sum.steps.by.day$date)]
 ```
 
-![plot of chunk hist.sum.by.day](figure/hist.sum.by.day.png) 
+```r
+plot(sum.steps.by.day$V1 ~ sum.steps.by.day$date,
+     ylab='Total Steps', xlab='', type="l",
+     main='Total Steps per Day')
+```
+
+![plot of chunk plot.sum.by.day](figure/plot.sum.by.day.png) 
 
 Now, for statistics' sake, let's find the mean and median:
 
@@ -219,12 +222,16 @@ Now let's do some of the same plotting and calculations on our newly imputed
 
 ```r
 imputed.sum.steps.by.day <- imputed.activity[,sum(steps), by=date]
-hist(imputed.sum.steps.by.day$V1, breaks=length(imputed.sum.steps.by.day$V1),
-     xlab='Total Steps', ylab='# of days',
-     main='Frequency of Total Steps per Day, imputed dataset')
+imputed.sum.steps.by.day[,date:=as.POSIXct(imputed.sum.steps.by.day$date)]
 ```
 
-![plot of chunk imputed.calculations](figure/imputed.calculations.png) 
+```r
+plot(imputed.sum.steps.by.day$V1 ~ imputed.sum.steps.by.day$date,
+     ylab='Total Steps', xlab='', type="l",
+     main='Total Steps per Day')
+```
+
+![plot of chunk imputed.plot.by.day](figure/imputed.plot.by.day.png) 
 
 ```r
 mean(imputed.sum.steps.by.day$V1)
@@ -245,8 +252,25 @@ median(imputed.sum.steps.by.day$V1)
 As we can see, the means of our two datasets are identical, and the median is
     only different by 1 step, which amounts to about .001% - completely negligible.
     
-As for our histograms, let's make it really clear how they've changed. First 
-    we will create two histograms, and overlay a density line on each.
+As for our figures, let's make it really clear how they've changed. Let's see
+what they look like overlayed on the same figure:
+
+```r
+#plot both sets of data on the same figure.
+plot(sum.steps.by.day$V1 ~ sum.steps.by.day$date, type="n",
+     main="Original vs Imputed Datasets - Total steps per day", ylab="Total Steps", xlab="")
+
+lines(sum.steps.by.day$V1 ~ sum.steps.by.day$date, col="blue",
+     type="l", main="Original Dataset", ylab="Total Steps", xlab="")
+
+lines(imputed.sum.steps.by.day$V1 ~ imputed.sum.steps.by.day$date, col="red",
+     type="l", main="Imputed Dataset", ylab="Total Steps", xlab="")
+```
+
+![plot of chunk compare.plots.display](figure/compare.plots.display.png) 
+
+This doesn't show us much difference, so let's view the data another way using
+histograms to compare the original dataset to its imputed cousin:
 
 ```r
 #Plot a histogram of our original dataset, then plot a density line
@@ -265,7 +289,7 @@ imputed.sum.density <- density(imputed.sum.steps.by.day$V1)
 imputed.sum.density$y <- imputed.sum.density$y * imputed.multiplier[1]
 ```
 
-Now let's see what they look like side-by-side:
+Now let's see what our two histograms look like side-by-side:
 
 ```r
 #plot these next to each other.
@@ -279,7 +303,6 @@ lines(imputed.sum.density, col='red')
 ```
 
 ![plot of chunk compare.histograms.display](figure/compare.histograms.display.png) 
-
 This side-by-side comparison makes it clear that the way we imputed the data
     has narrowed the variance in our original curve, skewing it towards it's
     original mean.
@@ -345,6 +368,8 @@ par(mfrow=c(2,1), mar=c(0,0,0,0), oma=c(3,3,1,1), tcl='-.25')
 # Weekend line
 plot(imputed.activity[is.wday=='weekend',mean(steps), by=interval], type='l',
      axes=FALSE, col='red', lwd=2, ylim=c(0,280))
+abline(h=max(imputed.activity[is.wday=='weekend',mean(steps), by=interval]$V1),
+      lty=3, col="red")
 # Draw a y-axis for this plot
 axis(2, at=seq(0,280,10))
 # Frame this plot
@@ -355,6 +380,8 @@ legend('topright', lwd=1, col=c('red', 'blue'),legend=c('Weekend', 'Weekday'))
 #Weekday line
 plot(imputed.activity[is.wday=='weekday',mean(steps), by=interval], type='l',
      axes=FALSE, col='blue', lwd=2, ylim=c(0,280))
+abline(h=max(imputed.activity[is.wday=='weekday',mean(steps), by=interval]$V1),
+      lty=3, col="blue")
 # Add a y-axis
 axis(2, at=seq(0,280,10))
 # Add an x-axis for the whole plot
